@@ -6,15 +6,26 @@ namespace VehicleAI
     {
         private MovingEntity _owner;
         private const float PanicDistanceSq = 100f * 100f;
-        
-        public SteeringBehaviours(MovingEntity owner)
+        private const float WanderRadius = 1.2f;
+        private const float WanderDistance = 2f;
+        private const float WanderJitterPerSecond = 80f;
+        private Vector2 _wanderTarget;
+        private readonly bool _isEvader;
+        private readonly MovingEntity _other;
+
+        public SteeringBehaviours(MovingEntity owner, bool isEvader, MovingEntity other)
         {
             _owner = owner;
+            _isEvader = isEvader;
+            _other = other;
         }
         
-        public Vector2 Calculate()
+        public virtual Vector2 Calculate()
         {
-            return Vector2.down;
+            if (_isEvader)
+                return Evade(_other) + Wander();
+            else
+                return Pursuit(_other);
         }
 
         public Vector2 Seek(Vector2 targetPosition)
@@ -72,9 +83,21 @@ namespace VehicleAI
             return Flee(pursuer.Position + pursuer.Velocity * lookAheadTime);
         }
 
+        public Vector2 Wander()
+        {
+            var wanderJitter = WanderJitterPerSecond * Time.deltaTime;
+            _wanderTarget += new Vector2(Random.Range(-1f, 1f) * wanderJitter, Random.Range(-1f, 1f) * wanderJitter);
+            _wanderTarget.Normalize();
+            _wanderTarget *= WanderRadius;
+            var targetLocal = _wanderTarget + new Vector2(WanderDistance, 0);
+            var targetWorld = _owner.Position + targetLocal;
+
+            return targetWorld - _owner.Position;
+        }
+        
         private float TurnAroundTime(Vector2 targetPosition)
         {
-            var toTarget = (targetPosition - _owner.Position.normalized);
+            var toTarget = (targetPosition - _owner.Position).normalized;
             var dot = Vector2.Dot(_owner.Heading, toTarget);
             
             //change this value to get the desired behaviour. The higher the max turn rate of the vehicle,

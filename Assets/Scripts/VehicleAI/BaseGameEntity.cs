@@ -10,7 +10,7 @@ namespace VehicleAI
         
         public int ID => GetInstanceID();
 
-        public Vector2 Pos
+        public Vector2 Position
         {
             get => transform.position.ToVec2();
             set => transform.position = value.ToVec3(GameWorld.WorldYPos);

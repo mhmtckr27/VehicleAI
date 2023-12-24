@@ -4,6 +4,6 @@ namespace VehicleAI
 {
     public class GameWorld : MonoBehaviour
     {
-        public static float WorldYPos;
+        public const float WorldYPos = 0f;
     }
 }
