@@ -7,6 +7,7 @@ namespace VehicleAI
     public abstract class BaseGameEntity : MonoBehaviour
     {
         [field: SerializeField] public float BoundingRadius { get; private set; }
+        [field: SerializeField] public GameWorld GameWorld { get; private set; }
         
         public int ID => GetInstanceID();
 
@@ -17,7 +18,7 @@ namespace VehicleAI
         }
 
         public abstract EntityType EntityType { get; }
-        public abstract bool Tag { get; }
+        public bool IsTagged { get; private set; }
         //TODO: scale
 
 #if UNITY_EDITOR
@@ -27,6 +28,15 @@ namespace VehicleAI
             Gizmos.DrawWireSphere(transform.position, BoundingRadius);
         }
 #endif
+        public void Tag()
+        {
+            IsTagged = true;
+        }
+
+        public void Untag()
+        {
+            IsTagged = false;
+        }
     }
 
     public enum EntityType

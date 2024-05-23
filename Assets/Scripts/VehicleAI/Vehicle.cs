@@ -1,5 +1,4 @@
-﻿using Extensions;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace VehicleAI
 {
@@ -9,7 +8,6 @@ namespace VehicleAI
         [SerializeField] private MovingEntity other;
         
         public override EntityType EntityType => EntityType.Vehicle;
-        public override bool Tag => false;
 
         [SerializeField] private GameWorld gameWorld;
 
