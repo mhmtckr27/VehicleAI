@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Extensions;
+using JetBrains.Annotations;
 using UnityEngine;
 using Utils;
 using Random = UnityEngine.Random;
@@ -21,22 +23,153 @@ namespace VehicleAI
         private float _detectionBoxLength;
         private float _wallDetectionFeelerLength;
         private List<Vector2> _feelers = new();
+        private Path _path;
+        private float _waypointSeekDistance = 10;
+        private readonly int _index;
 
-        public SteeringBehaviours(MovingEntity owner, bool isEvader, MovingEntity other)
+        private Vector2 _steeringForce;
+        
+        private float _wanderAmount;
+        private float _obstacleAvoidanceAmount;
+        private float _separationAmount;
+
+        private float _wallAvoidancePriority;
+        private float _obstacleAvoidancePriority;
+        private float _separationPriority;
+
+        public SteeringBehaviours(MovingEntity owner, bool isEvader, MovingEntity other, int index)
         {
             _owner = owner;
             _isEvader = isEvader;
             _other = other;
+            //todo : TeMP, remove
+            _index = index;
         }
 
         public virtual Vector2 Calculate()
         {
+            // if (_isEvader)
+            //     return Evade(_other) + Wander();
+            // else
+            //     return Pursuit(_other);
+
+            _owner.GameWorld.TagAgentsWithinRange(_owner, 10);
+            
+            
+            
+            return Cohesion(_owner.GameWorld.Agents);
+            return Alignment(_owner.GameWorld.Agents);
+            return Separation(_owner.GameWorld.Agents);
+            
             if (_isEvader)
-                return Evade(_other) + Wander();
+                return Wander();
             else
-                return Pursuit(_other);
+            {
+                if(_index == 1)
+                    return OffsetPursuit(_other, new Vector2(-10, -10));
+                else if(_index == 2)
+                    return OffsetPursuit(_other, new Vector2(10, -10));
+                else if(_index == 3)
+                    return OffsetPursuit(_other, new Vector2(-20, -20));
+                else if(_index == 4)
+                    return OffsetPursuit(_other, new Vector2(0, -20));
+                else
+                    return OffsetPursuit(_other, new Vector2(20, -20));
+            }
         }
 
+        /// <summary>
+        /// Calculates the steering force using the method 'Weighted Truncated Sum'
+        /// ps. It is a bad method for several problems mentioned at the Page 120
+        /// </summary>
+        /// <returns></returns>
+        private Vector2 Calculate_WTS()
+        {
+            Vector2 steeringForce = default;
+
+            steeringForce += Wander() * _wanderAmount;
+            steeringForce += ObstacleAvoidance(_owner.GameWorld.Obstacles) * _obstacleAvoidanceAmount;
+            steeringForce += Separation(_owner.GameWorld.Agents) * _separationAmount;
+
+            return steeringForce;
+        }
+        
+        /// <summary>
+        /// Calculates the steering force using the method 'Weighted Truncated Running Sum with Prioritization'
+        /// ps. It is the method that is used for the examples in the book
+        /// </summary>
+        /// <returns></returns>
+        private Vector2 Calculate_WTRSP()
+        {
+            _steeringForce = default;
+            
+            Vector2 force = default;
+
+            if (IsOn(BehaviourType.WallAvoidance))
+            {
+                force = WallAvoidance(_owner.GameWorld.Walls) * _wallAvoidancePriority;
+
+                if (!AccumulateForce(ref _steeringForce, force)) 
+                    return _steeringForce;
+            }
+
+            if (IsOn(BehaviourType.ObstacleAvoidance))
+            {
+                force = ObstacleAvoidance(_owner.GameWorld.Obstacles) * _obstacleAvoidancePriority;
+
+                if (!AccumulateForce(ref _steeringForce, force))
+                    return _steeringForce;
+            }
+            
+            if (IsOn(BehaviourType.Separation))
+            {
+                force = Separation(_owner.GameWorld.Agents) * _separationPriority;
+
+                if (!AccumulateForce(ref _steeringForce, force))
+                    return _steeringForce;
+            }
+            
+            //TODO: Add other steering forces too..
+            //..
+            //..
+            ////
+
+            return _steeringForce;
+        }
+
+        private bool AccumulateForce(ref Vector2 runningTotalForce, Vector2 forceToAdd)
+        {
+            var magnitudeSoFar = runningTotalForce.magnitude;
+
+            var magnitudeRemaining = _owner.MaxForce - magnitudeSoFar;
+
+            if (magnitudeRemaining <= 0)
+                return false;
+
+            var magnitudeToAdd = forceToAdd.magnitude;
+
+            if (magnitudeToAdd < magnitudeRemaining)
+                runningTotalForce += forceToAdd;
+            else
+                runningTotalForce += forceToAdd.normalized * magnitudeRemaining;
+
+            return true;
+        }
+
+        //TODO
+        public enum BehaviourType
+        {
+            WallAvoidance,
+            ObstacleAvoidance,
+            Separation,
+        }
+        
+        //TODO
+        private bool IsOn(BehaviourType behaviourType)
+        {
+            return true;
+        }
+        
         public Vector2 Seek(Vector2 targetPosition)
         {
             var desiredVelocity = (targetPosition - _owner.Position).normalized * _owner.MaxSpeed;
@@ -236,5 +369,153 @@ namespace VehicleAI
         }
 
         #endregion
+
+        private Vector2 Interpose(MovingEntity agentA, MovingEntity agentB)
+        {
+            var midpoint = (agentA.Position + agentB.Position) / 2;
+
+            var etaToMidpoint = Vector2.Distance(_owner.Position, midpoint) / _owner.MaxSpeed;
+
+            var predictedAPosition = agentA.Position + agentA.Velocity * etaToMidpoint;
+            var predictedBPosition = agentB.Position + agentB.Velocity * etaToMidpoint;
+
+            midpoint = (predictedAPosition + predictedBPosition) / 2;
+
+            return Arrive(midpoint, Deceleration.Fast);
+        }
+
+        private Vector2 GetHidingPosition(Vector2 obstaclePos, float obstacleRadius, Vector2 targetPosition)
+        {
+            var distanceFromBoundary = 5;
+
+            var distanceAway = obstacleRadius + distanceFromBoundary;
+
+            var toObstacle = (obstaclePos - targetPosition).normalized;
+
+            return (toObstacle * distanceAway) + obstaclePos;
+        }
+
+        private Vector2 Hide(MovingEntity target, List<BaseGameEntity> obstacles)
+        {
+            var distanceToClosest = float.MaxValue;
+            Vector2 bestHidingSpot = default;
+            
+            foreach (var obstacle in obstacles)
+            {
+                var hidingSpot = GetHidingPosition(obstacle.Position, obstacle.BoundingRadius, target.Position);
+                var distance = (hidingSpot - _owner.Position).sqrMagnitude;
+                
+                if(distance >= distanceToClosest)
+                    continue;
+
+                distanceToClosest = distance;
+                bestHidingSpot = hidingSpot;
+            }
+
+            if (Math.Abs(distanceToClosest - float.MaxValue) < Mathf.Epsilon)
+                return Evade(target);
+
+            return Arrive(bestHidingSpot, Deceleration.Fast);
+        }
+
+        private Vector2 FollowPath()
+        {
+            if ((_path.CurrentWaypoint - _owner.Position).sqrMagnitude < _waypointSeekDistance)
+                _path.SetNextWaypoint();
+
+            if (!_path.IsFinished())
+                return Seek(_path.CurrentWaypoint);
+
+            return Arrive(_path.CurrentWaypoint, Deceleration.Normal);
+        }
+
+        private Vector2 OffsetPursuit(MovingEntity leader, Vector2 offset)
+        {
+            var worldOffsetPosition = leader.transform.TransformPoint(offset.ToVec3()).ToVec2();
+            var toOffset = worldOffsetPosition - _owner.Position;
+
+            var lookAheadTime = toOffset.magnitude / (_owner.MaxSpeed + leader.Speed);
+            return Arrive(worldOffsetPosition + leader.Velocity * lookAheadTime, Deceleration.Fast);
+        }
+
+        private Vector2 Separation(List<MovingEntity> allAgents)
+        {
+            Vector2 steeringForce = default;
+
+            foreach (var agent in allAgents)
+            {
+                if(agent == _owner || !agent.IsTagged)
+                    continue;
+
+                var toAgent = _owner.Position - agent.Position;
+                steeringForce += toAgent.normalized / toAgent.magnitude;
+            }
+
+            return steeringForce;
+        }
+
+        private Vector2 Alignment(List<MovingEntity> allAgents)
+        {
+            Vector2 averageForward = default;
+
+            var neighborCount = 0;
+            
+            foreach (var agent in allAgents)
+            {
+                if(agent == _owner || !agent.IsTagged)
+                    continue;
+
+                averageForward += agent.Heading;
+                neighborCount++;
+            }
+
+            if (neighborCount > 0)
+            {
+                averageForward /= neighborCount;
+                averageForward -= _owner.Heading;
+            }
+
+            return averageForward;
+        }
+
+        private Vector2 Cohesion(List<MovingEntity> allAgents)
+        {
+            Vector2 centerOfMass = default;
+            Vector2 steeringForce = default;
+
+            var neighborCount = 0;
+            
+            foreach (var agent in allAgents)
+            {
+                if(agent == _owner || !agent.IsTagged)
+                    continue;
+
+                centerOfMass += agent.Position;
+                neighborCount++;
+            }
+
+            if (neighborCount > 0)
+            {
+                centerOfMass /= neighborCount;
+                steeringForce = Seek(centerOfMass);
+            }
+
+            return steeringForce;
+        }
+        
+        public void DrawGizmos()
+        {
+            //draw detection box
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireCube((_owner.Position + (-_owner.Heading * _owner.BoundingRadius)).ToVec3(),
+                new Vector3(_owner.BoundingRadius, _owner.BoundingRadius, _detectionBoxLength));
+            
+            //draw feelers
+            Gizmos.color = Color.gray;
+            foreach (var feeler in _feelers)
+            {
+                Gizmos.DrawLine(_owner.Position.ToVec3(), (_owner.Position + feeler).ToVec3());
+            }
+        }
     }
 }

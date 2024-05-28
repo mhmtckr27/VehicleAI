@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace VehicleAI
 {
@@ -6,16 +7,16 @@ namespace VehicleAI
     {
         [SerializeField] private bool isEvader;
         [SerializeField] private MovingEntity other;
+        [SerializeField] public int index;
         
         public override EntityType EntityType => EntityType.Vehicle;
-
-        [SerializeField] private GameWorld gameWorld;
 
         private SteeringBehaviours _steeringBehaviours;
 
         private void Awake()
         {
-            _steeringBehaviours = new SteeringBehaviours(this, isEvader, other);
+            index = transform.GetSiblingIndex();
+            _steeringBehaviours = new SteeringBehaviours(this, isEvader, other, transform.GetSiblingIndex());
         }
 
         protected void Update()
@@ -24,14 +25,19 @@ namespace VehicleAI
             var acceleration = steeringForce / Mass;
             Velocity = Vector2.ClampMagnitude(Velocity + acceleration * Time.deltaTime, MaxSpeed);
             Position += Velocity * Time.deltaTime;
-            
-            Debug.LogError(Velocity);
 
             if (Velocity.sqrMagnitude > 0.00000001f)
             {
                 Heading = Velocity.normalized;
                 Side = Vector2.Perpendicular(Heading);
             }
+        }
+
+        protected override void OnDrawGizmos()
+        {
+            base.OnDrawGizmos();
+            
+            _steeringBehaviours?.DrawGizmos();
         }
     }
 }

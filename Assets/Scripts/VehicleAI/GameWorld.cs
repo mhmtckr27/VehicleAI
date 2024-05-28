@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace VehicleAI
 {
@@ -7,11 +10,26 @@ namespace VehicleAI
     {
         public const float WorldYPos = 0f;
 
-        private List<BaseGameEntity> _obstacles;
+        public List<BaseGameEntity> Obstacles { get; private set; }
+        public List<Wall> Walls { get; private set; }
+        public List<MovingEntity> Agents { get; private set; }
+        public List<BaseGameEntity> AgentsAsBaseGameEntity { get; set; }
 
+        private void Awake()
+        {
+            Agents = FindObjectsByType<MovingEntity>(FindObjectsInactive.Include, FindObjectsSortMode.None).ToList();
+
+            AgentsAsBaseGameEntity = Agents.Select(entity => entity as BaseGameEntity).ToList();
+        }
+        
+        public void TagAgentsWithinRange(MovingEntity vehicle, float detectionBoxLength)
+        {
+            TagNeighbors(vehicle, AgentsAsBaseGameEntity, detectionBoxLength);
+        }
+        
         public void TagObstaclesWithinViewRange(MovingEntity vehicle, float detectionBoxLength)
         {
-            TagNeighbors(vehicle, _obstacles, detectionBoxLength);
+            TagNeighbors(vehicle, Obstacles, detectionBoxLength);
         }
         
         private void TagNeighbors(BaseGameEntity entity, List<BaseGameEntity> ContainerOfEntities, double radius)

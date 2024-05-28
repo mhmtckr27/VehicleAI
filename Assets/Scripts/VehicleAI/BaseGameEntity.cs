@@ -22,7 +22,7 @@ namespace VehicleAI
         //TODO: scale
 
 #if UNITY_EDITOR
-        private void OnDrawGizmos()
+        protected virtual void OnDrawGizmos()
         {
             Gizmos.color = Color.black;
             Gizmos.DrawWireSphere(transform.position, BoundingRadius);
