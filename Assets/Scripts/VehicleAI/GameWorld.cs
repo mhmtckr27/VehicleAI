@@ -18,6 +18,7 @@ namespace VehicleAI
         private void Awake()
         {
             Agents = FindObjectsByType<MovingEntity>(FindObjectsInactive.Include, FindObjectsSortMode.None).ToList();
+            Walls = FindObjectsByType<Wall>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).ToList();
 
             AgentsAsBaseGameEntity = Agents.Select(entity => entity as BaseGameEntity).ToList();
         }
@@ -44,6 +45,24 @@ namespace VehicleAI
 
                 if (nearEntity != entity && to.sqrMagnitude < range * range)
                     nearEntity.Tag();
+            }
+        }
+
+        private void EnforceNonPenetrationConstraint(BaseGameEntity entity, List<BaseGameEntity> containerOfEntities)
+        {
+            foreach (var otherEntity in containerOfEntities)
+            {
+                if(otherEntity == entity)
+                    continue;
+
+                var toEntity = entity.Position - otherEntity.Position;
+                var distance = toEntity.magnitude;
+
+                var overlapAmount = otherEntity.BoundingRadius + entity.BoundingRadius - distance;
+                if (overlapAmount > 0)
+                {
+                    entity.Position += toEntity / distance * overlapAmount;
+                }
             }
         }
     }

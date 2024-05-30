@@ -15,14 +15,19 @@ namespace VehicleAI
         private const float WanderRadius = 1.2f;
         private const float WanderDistance = 2f;
         private const float WanderJitterPerSecond = 80f;
-        private Vector2 _wanderTarget;
+        private Vector2 _wanderTargetVector;
         private readonly bool _isEvader;
         private readonly MovingEntity _other;
 
         private const float MinDetectionBoxLength = 40f;
         private float _detectionBoxLength;
-        private float _wallDetectionFeelerLength;
-        private List<Vector2> _feelers = new();
+        private float _wallDetectionFeelerLength = 2;
+        private List<Vector2> _feelers = new()
+        {
+            default,
+            default,
+            default
+        };
         private Path _path;
         private float _waypointSeekDistance = 10;
         private readonly int _index;
@@ -33,9 +38,22 @@ namespace VehicleAI
         private float _obstacleAvoidanceAmount;
         private float _separationAmount;
 
-        private float _wallAvoidancePriority;
-        private float _obstacleAvoidancePriority;
-        private float _separationPriority;
+        private const float _wallAvoidancePriority = 100;
+        private const float _obstacleAvoidancePriority = 1;
+        private const float _separationPriority = 1;
+        private const float _wanderPriority = 0.25f;
+
+        private float _wallAvoidanceWeight;
+        private float _obstacleAvoidanceWeight;
+        private float _separationWeight;
+
+        private List<BehaviourType> onBehaviours = new List<BehaviourType>()
+        {
+            BehaviourType.WallAvoidance,
+            BehaviourType.Wander
+        };
+
+        private Vector2 _wanderToPosition;
 
         public SteeringBehaviours(MovingEntity owner, bool isEvader, MovingEntity other, int index)
         {
@@ -55,7 +73,7 @@ namespace VehicleAI
 
             _owner.GameWorld.TagAgentsWithinRange(_owner, 10);
             
-            
+            return Calculate_WTRSP();
             
             return Cohesion(_owner.GameWorld.Agents);
             return Alignment(_owner.GameWorld.Agents);
@@ -129,10 +147,85 @@ namespace VehicleAI
                     return _steeringForce;
             }
             
+            if (IsOn(BehaviourType.Wander))
+            {
+                force = Wander() * _wanderPriority;
+
+                if (!AccumulateForce(ref _steeringForce, force))
+                    return _steeringForce;
+            }
+            
             //TODO: Add other steering forces too..
             //..
             //..
             ////
+
+            return _steeringForce;
+        }
+        
+        /// <summary>
+        /// Calculates the steering force using the method 'Prioritized Dithering'
+        /// ps. This method is cheaper than other two but accuracy is lower too.
+        /// Needs fair amount of parameter/probability tweaking to work well.
+        /// </summary>
+        /// <returns></returns>
+        private Vector2 Calculate_Dithered()
+        {
+            _steeringForce = default;
+
+            const float probWallAvoidance = 0.1f;
+            const float probObstacleAvoidance = 0.1f;
+            const float probSeparation = 0.2f;
+            const float probAlignment = 0.5f;
+            const float probCohesion = 0.5f;
+            const float probWander = 0.2f;
+
+            if (IsOn(BehaviourType.WallAvoidance) && Random.Range(0, 1f) < probWallAvoidance)
+            {
+                _steeringForce = WallAvoidance(_owner.GameWorld.Walls) 
+                                    * _wallAvoidanceWeight 
+                                    / probWallAvoidance;
+
+                if (_steeringForce != default)
+                {
+                    _steeringForce = _steeringForce.normalized *
+                                     Mathf.Clamp(_steeringForce.magnitude, 0, _owner.MaxForce);
+
+                    return _steeringForce;
+                }
+            }
+
+            if (IsOn(BehaviourType.ObstacleAvoidance) && Random.Range(0, 1f) < probObstacleAvoidance)
+            {
+                _steeringForce += ObstacleAvoidance(_owner.GameWorld.Obstacles) 
+                                  * _obstacleAvoidanceWeight 
+                                  / probObstacleAvoidance;
+
+                if (_steeringForce != default)
+                {
+                    _steeringForce = _steeringForce.normalized *
+                                     Mathf.Clamp(_steeringForce.magnitude, 0, _owner.MaxForce);
+
+                    return _steeringForce;
+                }
+            }
+
+            if (IsOn(BehaviourType.Separation) && Random.Range(0, 1f) < probSeparation)
+            {
+                _steeringForce += Separation(_owner.GameWorld.Agents) 
+                                    * _separationWeight 
+                                    / probSeparation;
+
+                if (_steeringForce != default)
+                {
+                    _steeringForce = _steeringForce.normalized *
+                                     Mathf.Clamp(_steeringForce.magnitude, 0, _owner.MaxForce);
+
+                    return _steeringForce;
+                }
+            }
+            
+            //etc. etc.
 
             return _steeringForce;
         }
@@ -159,15 +252,17 @@ namespace VehicleAI
         //TODO
         public enum BehaviourType
         {
-            WallAvoidance,
-            ObstacleAvoidance,
-            Separation,
+            None = -1,
+            WallAvoidance = 100,
+            ObstacleAvoidance = 200,
+            Separation = 300,
+            Wander = 400
         }
         
         //TODO
         private bool IsOn(BehaviourType behaviourType)
         {
-            return true;
+            return onBehaviours.Contains(behaviourType);
         }
         
         public Vector2 Seek(Vector2 targetPosition)
@@ -228,13 +323,13 @@ namespace VehicleAI
         public Vector2 Wander()
         {
             var wanderJitter = WanderJitterPerSecond * Time.deltaTime;
-            _wanderTarget += new Vector2(Random.Range(-1f, 1f) * wanderJitter, Random.Range(-1f, 1f) * wanderJitter);
-            _wanderTarget.Normalize();
-            _wanderTarget *= WanderRadius;
-            var targetLocal = _wanderTarget + new Vector2(WanderDistance, 0);
-            var targetWorld = _owner.Position + targetLocal;
+            _wanderTargetVector += new Vector2(Random.Range(-1f, 1f) * wanderJitter, Random.Range(-1f, 1f) * wanderJitter);
+            _wanderTargetVector.Normalize();
+            _wanderTargetVector *= WanderRadius;
+            var targetLocal = _wanderTargetVector + new Vector2(WanderDistance, 0);
+            _wanderToPosition = _owner.Position + targetLocal;
 
-            return targetWorld - _owner.Position;
+            return _wanderToPosition - _owner.Position;
         }
 
         private float TurnAroundTime(Vector2 targetPosition)
@@ -511,11 +606,15 @@ namespace VehicleAI
                 new Vector3(_owner.BoundingRadius, _owner.BoundingRadius, _detectionBoxLength));
             
             //draw feelers
-            Gizmos.color = Color.gray;
+            Gizmos.color = Color.red;
             foreach (var feeler in _feelers)
             {
-                Gizmos.DrawLine(_owner.Position.ToVec3(), (_owner.Position + feeler).ToVec3());
+                // Gizmos.DrawRay(new Ray(_owner.Position.ToVec3(), feeler.ToVec3()));
+                Gizmos.DrawLine(_owner.Position.ToVec3(), (feeler).ToVec3());
             }
+            
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(_wanderToPosition.ToVec3(), 0.2f);
         }
     }
 }

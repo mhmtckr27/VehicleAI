@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Serialization;
+using Utils;
 
 namespace VehicleAI
 {
@@ -12,11 +13,16 @@ namespace VehicleAI
         public override EntityType EntityType => EntityType.Vehicle;
 
         private SteeringBehaviours _steeringBehaviours;
+        private bool _isSmoothingOn = true;
+        
+        public Vector2 SmoothedHeading { get; private set; }
+        private Smoother _smoother;
 
         private void Awake()
         {
             index = transform.GetSiblingIndex();
             _steeringBehaviours = new SteeringBehaviours(this, isEvader, other, transform.GetSiblingIndex());
+            _smoother = new Smoother(10, Vector2.zero);
         }
 
         protected void Update()
@@ -26,10 +32,25 @@ namespace VehicleAI
             Velocity = Vector2.ClampMagnitude(Velocity + acceleration * Time.deltaTime, MaxSpeed);
             Position += Velocity * Time.deltaTime;
 
-            if (Velocity.sqrMagnitude > 0.00000001f)
+            if (Velocity.sqrMagnitude > Mathf.Epsilon)
             {
-                Heading = Velocity.normalized;
+                if (_isSmoothingOn)
+                {
+                    SmoothedHeading = _smoother.Update(Velocity.normalized);
+                    Heading = SmoothedHeading;
+                }
+                else
+                {
+                    Heading = Velocity.normalized;
+                }
+
                 Side = Vector2.Perpendicular(Heading);
+            }
+            
+            if (_isSmoothingOn)
+            {
+                SmoothedHeading = _smoother.Update(Heading);
+                Heading = SmoothedHeading;
             }
         }
 
