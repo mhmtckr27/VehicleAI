@@ -815,7 +815,7 @@ GameObject:
   m_Component:
   - component: {fileID: 286505979}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: Vehicles
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -862,9 +862,9 @@ MonoBehaviour:
   <BoundingRadius>k__BackingField: 1.1
   <GameWorld>k__BackingField: {fileID: 1719650242}
   <Mass>k__BackingField: 1
-  <MaxSpeed>k__BackingField: 25
-  <MaxForce>k__BackingField: 10
-  <MaxTurnRate>k__BackingField: 10
+  <MaxSpeed>k__BackingField: 15
+  <MaxForce>k__BackingField: 400
+  <MaxTurnRate>k__BackingField: 15
   isEvader: 1
   other: {fileID: 1730252361}
   index: 0
@@ -2680,8 +2680,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.7071067, y: 0.00000014901163, z: -0.00000007450581, w: 0.70710677}
-  m_LocalPosition: {x: 14.711752, y: 105.66569, z: 6.012929}
+  m_LocalRotation: {x: 0.70710677, y: 0.00000014901164, z: -0.00000007450582, w: 0.7071068}
+  m_LocalPosition: {x: 2.6271496, y: 21.479393, z: 1.3949499}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3852,11 +3852,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6573533196000442768, guid: 1cecfaef00cbe0b47a7dff66b50a7a17, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7310764150331548561, guid: 1cecfaef00cbe0b47a7dff66b50a7a17, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.73
+      value: -3.75
       objectReference: {fileID: 0}
     - target: {fileID: 7310764150331548561, guid: 1cecfaef00cbe0b47a7dff66b50a7a17, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3864,7 +3864,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7310764150331548561, guid: 1cecfaef00cbe0b47a7dff66b50a7a17, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.53
+      value: -5.51
       objectReference: {fileID: 0}
     - target: {fileID: 7310764150331548561, guid: 1cecfaef00cbe0b47a7dff66b50a7a17, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3928,7 +3928,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.19565, y: 0.19565, z: 0.19565}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 658204971}
@@ -4491,9 +4491,9 @@ MonoBehaviour:
   <BoundingRadius>k__BackingField: 1.1
   <GameWorld>k__BackingField: {fileID: 1719650242}
   <Mass>k__BackingField: 1
-  <MaxSpeed>k__BackingField: 10
-  <MaxForce>k__BackingField: 10
-  <MaxTurnRate>k__BackingField: 10
+  <MaxSpeed>k__BackingField: 15
+  <MaxForce>k__BackingField: 400
+  <MaxTurnRate>k__BackingField: 15
   isEvader: 0
   other: {fileID: 311157535}
   index: 0

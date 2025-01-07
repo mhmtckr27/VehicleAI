@@ -21,7 +21,7 @@ namespace VehicleAI
 
         private const float MinDetectionBoxLength = 40f;
         private float _detectionBoxLength;
-        private float _wallDetectionFeelerLength = 2;
+        private float _wallDetectionFeelerLength = 4;
         private List<Vector2> _feelers = new()
         {
             default,
@@ -50,7 +50,7 @@ namespace VehicleAI
         private List<BehaviourType> onBehaviours = new List<BehaviourType>()
         {
             BehaviourType.WallAvoidance,
-            BehaviourType.Wander
+            // BehaviourType.Wander
         };
 
         private Vector2 _wanderToPosition;
@@ -131,6 +131,21 @@ namespace VehicleAI
                     return _steeringForce;
             }
 
+            if (!_isEvader)
+            {
+                force = Pursuit(_other);
+                if (!AccumulateForce(ref _steeringForce, force))
+                    return _steeringForce;
+
+            }
+            else
+            {
+                force = Evade(_other);
+                
+                if (!AccumulateForce(ref _steeringForce, force))
+                    return _steeringForce;
+            }
+            
             if (IsOn(BehaviourType.ObstacleAvoidance))
             {
                 force = ObstacleAvoidance(_owner.GameWorld.Obstacles) * _obstacleAvoidancePriority;
